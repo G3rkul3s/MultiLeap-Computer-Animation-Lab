@@ -19,11 +19,11 @@ make
 ## Usage
 Execute with `.\Lab.exe [-s <number of calibration samples>] [-i <input file>] [-o <output file>]` in "build" folder.
 
-`-s` - a positive integer
+`-s` - a positive integer indicating a number of hand samples to be taken for calibration
 
-`-i` - a path to a binary input file from the "data" folder. If you want to create/generate your own input file, refer to the src/save_devices_data_structure.cpp and json files in the "data".
+`-i` - a path to a binary input file from the "data" folder. If you want to create/generate your own input file, refer to the src/save_devices_data_structure.cpp and json files in the "data"
 
-`-o` - a path to an output json file.
+`-o` - a path to an output json file
 
 Default arguments:
 `-s 20 -i "../data/12_12_2024_binData_fusion_largeMotion_rightHand_outside_3.bin" -o "../results/fused_hand.json"`
