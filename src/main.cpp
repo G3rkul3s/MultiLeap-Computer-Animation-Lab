@@ -160,8 +160,7 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
             {
                 data_status[sensor.first].samples.emplace_back(frame_data[sensor.first]);
                 data_status[sensor.first].fused.emplace_back(getFusedHand(frame_data, data_status));
-                // TODO: redo using registered_devices count instead of sensor id as cursor position
-                moveCursor(0, currentPos.Y - (registered_devices.size() - sensor.first + 1));
+                moveCursor(0, currentPos.Y - (registered_devices.size() - std::distance(registered_devices.begin(), registered_devices.find(sensor.first))));
                 printf("Added %*d / %d calibration sample(s) for sensor %d",
                        num_digits, data_status[sensor.first].samples.size(), sample_count, sensor.first);
                 // this_thread::sleep_for(std::chrono::seconds(2));
@@ -193,7 +192,7 @@ int main(int argc, char *argv[])
         for (int i = 1; i < argc; ++i)
         {
             std::string arg = argv[i];
-            if (arg == "s")
+            if (arg == "-s")
             {
                 if (i + 1 < argc)
                 {
@@ -210,7 +209,7 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
-            else if (arg == "i")
+            else if (arg == "-i")
             {
                 if (i + 1 < argc)
                 {
@@ -222,7 +221,7 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
-            else if (arg == "o")
+            else if (arg == "-o")
             {
                 if (i + 1 < argc)
                 {
