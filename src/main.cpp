@@ -1,7 +1,5 @@
 #include "funcs.h"
 
-using namespace std;
-
 // Shared resources
 queue<devices_data_sim> dataQueue; // Queue for storing data
 queue<uint32_t> idQueue;
@@ -27,7 +25,7 @@ void emitter(const devices_data_t &data)
                                {
                                    return a.second < b.second;
                                });
-    // printf("Data stream simulation START\n");
+    printf("Data stream simulation START\n");
     for (int i = 0; max_ind->second + i < data.begin()->second.second.size(); i++)
     {
         if (stopEmitting)
@@ -69,7 +67,7 @@ void emitter(const devices_data_t &data)
     printf("Data stream simulation END\n");
 }
 
-void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int reference_id, int sample_count)
+void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int reference_id, int sample_count, string output_file)
 {
     // NOTE: calibration with right hand
     hideCursor();
@@ -120,15 +118,15 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
             // stopEmitting = true;
             // break;
             calibration_end = true;
-            moveCursor(0, currentPos.Y + 1);
+            moveCursor(0, currentPos.Y - 1);
             printf("\nCalibration END\n");
-            for (const auto &device : data_status)
-            {
-                cout << "Sensor " << device.first << endl
-                     << "Position: (" << device.second.sensor_position.transpose() << ")" << endl
-                     << "Normal: (" << device.second.sensor_normal.transpose() << ")" << endl
-                     << endl;
-            }
+            // for (const auto &device : data_status)
+            // {
+            //     std::cout << "Sensor " << device.first << std::endl
+            //               << "Position: (" << device.second.sensor_position.transpose() << ")" << std::endl
+            //               << "Normal: (" << device.second.sensor_normal.transpose() << ")" << std::endl
+            //               << std::endl;
+            // }
             printf("Waiting for data transmission to end...\n");
             showCursor();
         }
@@ -173,8 +171,6 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
             {
                 calculateOptimalTranslationAndRotation(data_status[sensor.first]);
                 // find new position and normal
-                // Eigen::Map<Eigen::Vector3f> position_e(data_status[sensor.first].sensor_position.data(), data_status[sensor.first].sensor_position.size());
-                // Eigen::Map<Eigen::Vector3f> normal_e(data_status[sensor.first].sensor_normal.data(), data_status[sensor.first].sensor_normal.size());
                 data_status[sensor.first].sensor_position = data_status[sensor.first].sensor_position + data_status[sensor.first].translation_vector;
                 data_status[sensor.first].sensor_normal = data_status[sensor.first].rotation_matrix * data_status[sensor.first].sensor_normal;
                 data_status[sensor.first].calibrated = true;
@@ -184,19 +180,75 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
         // clear current frame
         frame_data.clear();
     }
-    write_hand_to_json_file(fused_hand_vec, data_status, "../results/fused_hand.json");
+    write_hand_to_json_file(fused_hand_vec, data_status, output_file);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     int number_of_calibration_samples = 20;
+    string input_file = "../data/12_12_2024_binData_fusion_largeMotion_rightHand_outside_3.bin";
+    string output_file = "../results/fused_hand.json";
+    if (argc > 1)
+    {
+        for (int i = 1; i < argc; ++i)
+        {
+            std::string arg = argv[i];
+            if (arg == "s")
+            {
+                if (i + 1 < argc)
+                {
+                    number_of_calibration_samples = std::stoi(argv[++i]);
+                    if (number_of_calibration_samples < 1)
+                    {
+                        std::cerr << "Error: number of calibration samples must be greater than 1.\n";
+                        return 1;
+                    }
+                }
+                else
+                {
+                    std::cerr << "Error: -s requires a value.\n";
+                    return 1;
+                }
+            }
+            else if (arg == "i")
+            {
+                if (i + 1 < argc)
+                {
+                    input_file = argv[++i];
+                }
+                else
+                {
+                    std::cerr << "Error: -i requires a value.\n";
+                    return 1;
+                }
+            }
+            else if (arg == "o")
+            {
+                if (i + 1 < argc)
+                {
+                    output_file = argv[++i];
+                }
+                else
+                {
+                    std::cerr << "Error: -o requires a value.\n";
+                    return 1;
+                }
+            }
+            else
+            {
+                std::cerr << "Unknown option: " << arg << std::endl;
+                std::cerr << "Usage: .\\Lab [-s <number of calibration samples>] [-i <input file>] [-o <output file>]\n";
+                return 1;
+            }
+        }
+    }
     // read recorded data
     map<uint32_t, pair<uint32_t, string>> registered_devices;
     devices_data_t data;
-    load_devices_data(registered_devices, data, "../data/12_12_2024_binData_fusion_largeMotion_rightHand_outside_3.bin");
+    load_devices_data(registered_devices, data, input_file);
     // start data transmission simulation
     thread emitThread(emitter, cref(data));
-    thread recvThread(receiver, registered_devices, 1, number_of_calibration_samples);
+    thread recvThread(receiver, registered_devices, 1, number_of_calibration_samples, output_file);
     // Wait for both threads to complete
     emitThread.join();
     recvThread.join();
