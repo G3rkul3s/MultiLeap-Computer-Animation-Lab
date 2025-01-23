@@ -1,4 +1,4 @@
-# This is a Lab project for the Compuetr Animation class at Uni-Bonn
+# This is a Lab project for the Computer Animation class at Uni-Bonn
 
 In this project algorithms from the ["Project MultiLeap: Making Multiple Hand Tracking Sensors to Act Like One"](https://www.researchgate.net/publication/357257620_Project_MultiLeap_Making_Multiple_Hand_Tracking_Sensors_to_Act_Like_One)
 paper by Tomáš Nováček and Marcel Jirina are implemented.
@@ -19,7 +19,10 @@ cmake .. -G"MinGW Makefiles"
 make
 ```
 ## Usage
-Execute with `.\Lab.exe [-s <number of calibration samples>] [-i <input file>] [-o <output file>]` in "build" folder.
+Execute from "build" folder:
+```
+.\Lab.exe [-s <number_of_calibration samples>] [-i <input_file>] [-o <output_file>] [-t <number_of_frames_to_record>]
+```
 
 `-s` - a positive integer indicating a number of hand samples to be taken for calibration
 
@@ -27,9 +30,12 @@ Execute with `.\Lab.exe [-s <number of calibration samples>] [-i <input file>] [
 
 `-o` - a path to an output json file
 
-Default arguments:
-`-s 20 -i "../data/12_12_2024_binData_fusion_largeMotion_rightHand_outside_3.bin" -o "../results/fused_hand.json"`
+`-t` - a number of frames to be recorded after calibration
 
+To visualize the fused hand run the python script in the "src" folder:
+```
+py .\src\fused_hand_visualizer.py -i .\results\fused_hand.json
+```
 ##
 *Created by Nikita Morev*
 

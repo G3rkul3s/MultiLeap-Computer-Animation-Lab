@@ -66,7 +66,7 @@ void emitter(const devices_data_t &data)
     printf("Data stream simulation END\n");
 }
 
-void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int reference_id, int sample_count, string output_file)
+void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int reference_id, int sample_count, string output_file, int record_frames)
 {
     // NOTE: calibration with right hand
     hideCursor();
@@ -99,7 +99,6 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
         while (!dataQueue.empty())
         {
             devices_data_sim data = dataQueue.front();
-            // data.second.second.center_left_hand;
             frame_data[data.first] = data.second;
             dataQueue.pop();
         }
@@ -132,7 +131,7 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
         // record fused hand after the calibration is done
         if (calibration_end)
         {
-            if (i > 499)
+            if (i > record_frames - 1)
             {
                 stopEmitting = true;
             }
@@ -184,6 +183,7 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
 int main(int argc, char *argv[])
 {
     int number_of_calibration_samples = 20;
+    int record_frames = 500;
     string input_file = "../data/12_12_2024_binData_fusion_largeMotion_rightHand_outside_3.bin";
     string output_file = "../results/fused_hand.json";
     if (argc > 1)
@@ -232,6 +232,23 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
+            else if (arg == "-t")
+            {
+                if (i + 1 < argc)
+                {
+                    record_frames = std::stoi(argv[++i]);
+                    if (record_frames < 0)
+                    {
+                        std::cerr << "Error: number of frames to record must be positive.\n";
+                        return 1;
+                    }
+                }
+                else
+                {
+                    std::cerr << "Error: -t requires a value.\n";
+                    return 1;
+                }
+            }
             else
             {
                 std::cerr << "Unknown option: " << arg << std::endl;
@@ -246,7 +263,7 @@ int main(int argc, char *argv[])
     load_devices_data(registered_devices, data, input_file);
     // start data transmission simulation
     thread emitThread(emitter, cref(data));
-    thread recvThread(receiver, registered_devices, 1, number_of_calibration_samples, output_file);
+    thread recvThread(receiver, registered_devices, 1, number_of_calibration_samples, output_file, record_frames);
     // Wait for both threads to complete
     emitThread.join();
     recvThread.join();

@@ -2,15 +2,8 @@ import json
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
 
-# Path to the JSON file
-filename = "results/fused_hand.json"
-
-# Read and parse the JSON file
-with open(filename, "r") as file:
-    data = json.load(file)
-
-# Total number of frames
-total_frames = len(data["frame_data"])
+import sys
+import getopt
 
 # Define a mapping of sensor_id to colors
 sensor_colors = {
@@ -45,17 +38,15 @@ def plot_frame(frame_idx):
     # Clear the plot for the next frame
     ax.clear()
     xa = ya = za = xhc = yhc = zhc = 0
-    # Extract X, Y, Z coordinates
+    # Extract X, Y, Z coordinates and plot 3D points
     if checkboxes.get_status()[0]:
         right_hand_avrg = frame["right_hand_fused_avrg"]
         xa, ya, za = zip(*right_hand_avrg)
+        ax.scatter(xa, ya, za, c=color, marker='o')
     if checkboxes.get_status()[1]:
         right_hand_hc = frame["right_hand_fused_hc"]
         xhc, yhc, zhc = zip(*right_hand_hc)
-
-    # Plot the 3D points
-    ax.scatter(xa, ya, za, c=color, marker='o')
-    ax.scatter(xhc, yhc, zhc, c=color, marker='o')
+        ax.scatter(xhc, yhc, zhc, c=color, marker='o')
 
     # Loop through each point and normal
     for sensor in data["sensor_data"]:
@@ -86,7 +77,29 @@ def plot_frame(frame_idx):
 
 
 
-def main():
+def main(argv):
+    helpstr = """fused_hand_visualizer.py [-i <InputFilename>]"""
+    filename = None
+    try:
+        opts, args = getopt.getopt(argv,"i:")
+    except getopt.GetoptError:
+        print (helpstr)
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print (helpstr)
+            sys.exit()
+        elif opt == "-i":
+            filename = arg
+    filename = filename or "./results/fused_hand.json"
+    global data
+    # Read and parse the JSON file
+    with open(filename, "r") as file:
+        data = json.load(file)
+
+    # Total number of frames
+    total_frames = len(data["frame_data"])
+
     # Function to handle key press events
     def on_key(event):
         if event.key == "right":
@@ -126,4 +139,4 @@ def main():
     # visualize_right_hand(data)
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
