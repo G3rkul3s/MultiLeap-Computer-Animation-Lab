@@ -3,9 +3,9 @@
 In this project algorithms from the ["Project MultiLeap: Making Multiple Hand Tracking Sensors to Act Like One"](https://www.researchgate.net/publication/357257620_Project_MultiLeap_Making_Multiple_Hand_Tracking_Sensors_to_Act_Like_One)
 paper by Tomáš Nováček and Marcel Jirina are implemented.
 
-*Note:* Those algorithm implementations, though in theory can be used with real-time sensor readings, have been designed with simulated readings in mind.
+📝*Note*: Those algorithm implementations, though in theory can be used with real-time sensor readings, have been designed with simulated readings in mind.
 
-*Warning*: For now calibration and hand fusion only works with the right hand.
+⚠*Warning*: For now, calibration and hand fusion only works with the right hand.
 
 ## To create an executable for this project:
 1. Create a build directory in the root folder

@@ -17,7 +17,7 @@ sensor_colors = {
     1: 'blue',
     2: 'green',
     3: 'red',
-    4: 'yellow',
+    4: 'black',
 }
 
 # Create a 3D plot
@@ -27,7 +27,7 @@ ax = fig.add_subplot(111, projection='3d')
 # Create the checkboxes
 ax_checkbox = plt.axes([0.01, 0.7, 0.3, 0.2])  # Checkbox position
 checkbox_labels = ['Average', 'Highest confidence']
-checkbox_status = [True, True]  # Initial status: both checked
+checkbox_status = [True, False]  # Initial status: both checked
 checkboxes = CheckButtons(ax_checkbox, checkbox_labels, checkbox_status)
 
 # Function to visualize 3D points dynamically
@@ -36,6 +36,7 @@ def plot_frame(frame_idx):
     frame = data["frame_data"][frame_idx]
     annotation = frame["annotation"]
     confidence = annotation.get("confidence_right_hand")
+    deviation = annotation.get("deviation")
     sensor_id = annotation.get("sensor_id")
     timestamp = annotation.get("timestamp")
     # Determine the color based on sensor_id
@@ -74,7 +75,7 @@ def plot_frame(frame_idx):
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
-    ax.set_title(f"Confidence {round(confidence, 2)}\nTimestamp: {timestamp}")
+    ax.set_title(f"Confidence {int(confidence * 100)}% | Deviation {round(deviation, 2)} mm\nTimestamp: {timestamp}")
 
     # Optionally set limits (adjust based on your data range)
     ax.set_xlim([-100, 400])

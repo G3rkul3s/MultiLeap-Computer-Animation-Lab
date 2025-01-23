@@ -80,6 +80,9 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
     fused_hand_data fused_hand;
     map<uint32_t, float> confidence;
     float confidence_sum = 0;
+    float hand_deviation = 0;
+    int hand_in_view_count = 0; // how many calibrated sensors sees the hand
+    uint32_t joint_num = frame_data.begin()->second.first.second.size();
     // compute tracking data confidence
     // for each calibrated sensor
     for (const auto &sensor : frame_data)
@@ -90,6 +93,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
             if (sensor.second.second.state == gotHandsState::rightHand)
             {
                 confidence[sensor.first] = computeConfidence(sensor.second.second, data_status.at(sensor.first));
+                hand_in_view_count++;
                 confidence_sum += confidence[sensor.first];
             }
             else
@@ -114,8 +118,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
     fused_hand.first.confidence_right_hand = confidence.at(max_ind);
     fused_hand.first.timestamp = frame_data.at(max_ind).second.timestamp;
     // apply translation and rotation to get hand postion from the perspective of the first sensor
-    // average mode
-    for (int i = 0; i < frame_data.at(max_ind).first.second.size(); ++i)
+    for (int i = 0; i < joint_num; ++i)
     {
         vector<float> avrg_point = {0, 0, 0};
         Eigen::Map<Eigen::Vector3f> point_a(avrg_point.data());
@@ -128,20 +131,29 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
                 Eigen::Map<Eigen::Vector3f> point_e(point.data());
                 // perform translation and rotation
                 point_e = data_status.at(sensor.first).translation_vector + data_status.at(sensor.first).rotation_matrix * point_e;
+                // highest confidence mode
+                if (sensor.first == max_ind)
+                {
+                    fused_hand.second.first.push_back(point);
+                }
+                // average mode
                 point_a += point_e * confidence.at(sensor.first);
             }
         }
         point_a /= confidence_sum;
         fused_hand.second.second.push_back(avrg_point);
+        // calculate hand deviation
+        for (const auto &sensor : frame_data)
+        {
+            if (data_status.at(sensor.first).calibrated)
+            {
+                vector<float> point(sensor.second.first.second.at(i).begin(), sensor.second.first.second.at(i).begin() + 3);
+                Eigen::Map<Eigen::Vector3f> point_e(point.data());
+                hand_deviation += vecm::distanceBetweenVectors(point_e, point_a) * confidence.at(sensor.first);
+            }
+        }
     }
-    // highest confidence mode
-    for (const auto &row : frame_data.at(max_ind).first.second)
-    {
-        vector<float> point(row.begin(), row.begin() + 3);
-        Eigen::Map<Eigen::Vector3f> point_e(point.data());
-        point_e = data_status.at(max_ind).translation_vector + data_status.at(max_ind).rotation_matrix * point_e;
-        fused_hand.second.first.push_back(point);
-    }
+    fused_hand.first.hand_deviation = hand_deviation / (joint_num * hand_in_view_count * confidence_sum);
     return fused_hand;
 }
 
@@ -149,7 +161,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
 // Kabsch algorithm
 void calculateOptimalTranslationAndRotation(CalibrationStatus &data_status)
 {
-    int finger_points[20] = {2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 20, 22, 23, 24, 25}; // all idexes of fingers joints
+    int finger_points[20] = {2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 20, 22, 23, 24, 25}; // all idexes of right hand fingers joints
     size_t rows = data_status.samples.size() * 20;
     // represent as P and Q
     Eigen::MatrixXf matP(rows, 3);
