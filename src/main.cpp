@@ -2,12 +2,11 @@
 
 // Shared resources
 queue<devices_data_sim> dataQueue; // Queue for storing data
-queue<uint32_t> idQueue;
-mutex mtx;                        // Mutex for protecting shared resources
-condition_variable cvEmitter;     // Used by the receiver to signal the emitter
-condition_variable cvReceiver;    // Used by the emitter to signal the receiver
-atomic<bool> done(false);         // Atomic flag to signal end of work
-atomic<bool> stopEmitting(false); // Flag to signal emitter to stop
+mutex mtx;                         // Mutex for protecting shared resources
+condition_variable cvEmitter;      // Used by the receiver to signal the emitter
+condition_variable cvReceiver;     // Used by the emitter to signal the receiver
+atomic<bool> done(false);          // Atomic flag to signal end of work
+atomic<bool> stopEmitting(false);  // Flag to signal emitter to stop
 
 // simulating the dataflow from sensors
 // assuming that they are synchronized in time

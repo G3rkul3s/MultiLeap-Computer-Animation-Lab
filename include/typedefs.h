@@ -65,9 +65,12 @@ struct AnnotationFusedHand
     uint32_t sensor_id;
     uint32_t timestamp;
     float confidence_right_hand;
+    float hand_deviation;
 };
 
-typedef pair<AnnotationFusedHand, hand_data_sim> fused_hand_data;
+// first hand_data_sim is the highest confidence fusing mode
+// second hand_data_sim is theaverage fusing mode
+typedef pair<AnnotationFusedHand, pair<hand_data_sim, hand_data_sim>> fused_hand_data;
 
 struct CalibrationStatus
 {

@@ -148,7 +148,8 @@ json fused_hand_data_to_json(const fused_hand_data &data)
 {
     return {
         {"annotation", annotation_to_json(data.first)},
-        {"right_hand", hand_data_sim_to_json(data.second)}};
+        {"right_hand_fused_hc", hand_data_sim_to_json(data.second.first)},
+        {"right_hand_fused_avrg", hand_data_sim_to_json(data.second.second)}};
 }
 
 // Function to convert sensor data to JSON

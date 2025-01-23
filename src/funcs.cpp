@@ -75,22 +75,28 @@ float computeConfidence(const AnnotationAtTimestamp &annotation, const Calibrati
 }
 
 // construct fused hand
-// TODO: add weighted average mode
 fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, const map<uint32_t, CalibrationStatus> &data_status)
 {
     fused_hand_data fused_hand;
     map<uint32_t, float> confidence;
+    float confidence_sum = 0;
     // compute tracking data confidence
     // for each calibrated sensor
     for (const auto &sensor : frame_data)
     {
         if (data_status.at(sensor.first).calibrated)
         {
+            // store confidence values only for the sensors where the right hand is detected
             if (sensor.second.second.state == gotHandsState::rightHand)
             {
                 confidence[sensor.first] = computeConfidence(sensor.second.second, data_status.at(sensor.first));
+                confidence_sum += confidence[sensor.first];
             }
-            // NOTE: left hand calibration is not yet implemented
+            else
+            {
+                confidence[sensor.first] = 0;
+            }
+            // NOTE: left hand calibration and fusion is not yet implemented
             // else if (sensor.second.second.state == gotHandsState::leftHand)
             // {
             //     confidence[sensor.first] = computeConfidence(sensor.second.second, data_status.at(sensor.first));
@@ -108,14 +114,33 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
     fused_hand.first.confidence_right_hand = confidence.at(max_ind);
     fused_hand.first.timestamp = frame_data.at(max_ind).second.timestamp;
     // apply translation and rotation to get hand postion from the perspective of the first sensor
+    // average mode
+    for (int i = 0; i < frame_data.at(max_ind).first.second.size(); ++i)
+    {
+        vector<float> avrg_point = {0, 0, 0};
+        Eigen::Map<Eigen::Vector3f> point_a(avrg_point.data());
+        for (const auto &sensor : frame_data)
+        {
+            if (data_status.at(sensor.first).calibrated)
+            {
+                vector<float> point(sensor.second.first.second.at(i).begin(), sensor.second.first.second.at(i).begin() + 3); // manually take first 3 elements, because frame data has unnecessary quaternion information
+                // map to Eigen vector to perform vector operations
+                Eigen::Map<Eigen::Vector3f> point_e(point.data());
+                // perform translation and rotation
+                point_e = data_status.at(sensor.first).translation_vector + data_status.at(sensor.first).rotation_matrix * point_e;
+                point_a += point_e * confidence.at(sensor.first);
+            }
+        }
+        point_a /= confidence_sum;
+        fused_hand.second.second.push_back(avrg_point);
+    }
+    // highest confidence mode
     for (const auto &row : frame_data.at(max_ind).first.second)
     {
-        vector<float> point(row.begin(), row.begin() + 3); // manually take first 3 elements, because frame data has unnecessary quaternion information
-        // map to Eigen vector to perform vector operations
+        vector<float> point(row.begin(), row.begin() + 3);
         Eigen::Map<Eigen::Vector3f> point_e(point.data());
-        // perform translation and rotation
         point_e = data_status.at(max_ind).translation_vector + data_status.at(max_ind).rotation_matrix * point_e;
-        fused_hand.second.push_back(point);
+        fused_hand.second.first.push_back(point);
     }
     return fused_hand;
 }
@@ -135,7 +160,7 @@ void calculateOptimalTranslationAndRotation(CalibrationStatus &data_status)
         {
             for (size_t j = 0; j < 3; ++j)
             {
-                matP(i + k * 20, j) = data_status.fused.at(k).second.at(finger_points[i]).at(j);
+                matP(i + k * 20, j) = data_status.fused.at(k).second.first.at(finger_points[i]).at(j);
                 matQ(i + k * 20, j) = data_status.samples[k].first.second[finger_points[i]][j];
             }
         }

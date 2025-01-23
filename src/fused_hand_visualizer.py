@@ -1,6 +1,6 @@
 import json
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
+from matplotlib.widgets import Slider, CheckButtons
 
 # Path to the JSON file
 filename = "results/fused_hand.json"
@@ -24,11 +24,16 @@ sensor_colors = {
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
+# Create the checkboxes
+ax_checkbox = plt.axes([0.01, 0.7, 0.3, 0.2])  # Checkbox position
+checkbox_labels = ['Average', 'Highest confidence']
+checkbox_status = [True, True]  # Initial status: both checked
+checkboxes = CheckButtons(ax_checkbox, checkbox_labels, checkbox_status)
+
 # Function to visualize 3D points dynamically
 def plot_frame(frame_idx):
     # Iterate through each frame of data
     frame = data["frame_data"][frame_idx]
-    right_hand = frame["right_hand"]
     annotation = frame["annotation"]
     confidence = annotation.get("confidence_right_hand")
     sensor_id = annotation.get("sensor_id")
@@ -38,12 +43,18 @@ def plot_frame(frame_idx):
 
     # Clear the plot for the next frame
     ax.clear()
-
+    xa = ya = za = xhc = yhc = zhc = 0
     # Extract X, Y, Z coordinates
-    xs, ys, zs = zip(*right_hand)
+    if checkboxes.get_status()[0]:
+        right_hand_avrg = frame["right_hand_fused_avrg"]
+        xa, ya, za = zip(*right_hand_avrg)
+    if checkboxes.get_status()[1]:
+        right_hand_hc = frame["right_hand_fused_hc"]
+        xhc, yhc, zhc = zip(*right_hand_hc)
 
     # Plot the 3D points
-    ax.scatter(xs, ys, zs, c=color, marker='o')
+    ax.scatter(xa, ya, za, c=color, marker='o')
+    ax.scatter(xhc, yhc, zhc, c=color, marker='o')
 
     # Loop through each point and normal
     for sensor in data["sensor_data"]:
@@ -103,6 +114,10 @@ def main():
     slider = Slider(ax_slider, 'Frame', 1, total_frames - 1, valinit=0, valstep=1)
     # Attach the update function to the slider
     slider.on_changed(plot_frame)
+    # Attach an event to the checkboxes to update the plot
+    def toggle_features(label):
+        plot_frame(slider.val)  # Re-render the current frame
+    checkboxes.on_clicked(toggle_features)
     
     # Plot the initial frame
     plot_frame(slider.val)
