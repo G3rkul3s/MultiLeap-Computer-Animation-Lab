@@ -39,4 +39,4 @@ py .\src\fused_hand_visualizer.py -i .\results\fused_hand.json
 ##
 *Created by Nikita Morev*
 
-*Special thanks to Aleksandr Pavlenko for providing the data loader code and recording the data.*
+*Special thanks to [Aleksandr Pavlenko](https://github.com/SashaPavlenko) for providing the data loader code and recording the data.*

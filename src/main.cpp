@@ -9,7 +9,6 @@ atomic<bool> done(false);          // Atomic flag to signal end of work
 atomic<bool> stopEmitting(false);  // Flag to signal emitter to stop
 
 // simulating the dataflow from sensors
-// assuming that they are synchronized in time
 void emitter(const devices_data_t &data)
 {
     // align sensor data in time
@@ -36,8 +35,7 @@ void emitter(const devices_data_t &data)
         {
             devices_data_sim data_sim;
             data_sim.first = sensor.first;
-            // NOTE: only the right hand data is emmited
-            data_sim.second = make_pair(make_pair(sensor.second.first.second[start_ind.at(sensor.first) + i],
+            data_sim.second = make_pair(make_pair(sensor.second.first.first[start_ind.at(sensor.first) + i],
                                                   sensor.second.first.second[start_ind.at(sensor.first) + i]),
                                         sensor.second.second[start_ind.at(sensor.first) + i]);
             lock_guard<mutex> lock(mtx);
@@ -68,11 +66,10 @@ void emitter(const devices_data_t &data)
 
 void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int reference_id, int sample_count, string output_file, int record_frames)
 {
-    // NOTE: calibration with right hand
     hideCursor();
     printf("Calibration START\n");
     // initiallize all necessary data structures
-    int i = 0; // frame counter for later hand visualization
+    int f_count = 0; // frame counter for later hand visualization
     bool calibration_end = false;
     vector<fused_hand_data> fused_hand_vec;
     int num_sensors = registered_devices.size();
@@ -131,19 +128,22 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
         // record fused hand after the calibration is done
         if (calibration_end)
         {
-            if (i > record_frames - 1)
+            if (f_count > record_frames - 1)
             {
                 stopEmitting = true;
             }
             fused_hand_vec.emplace_back(getFusedHand(frame_data, data_status));
-            i++;
+            f_count++;
         }
         // Sample the data
         for (const auto &sensor : frame_data)
         {
             // skip already calibrated sensors
-            // skip frames where right arm is not detected
-            if (data_status[sensor.first].calibrated || frame_data[sensor.first].second.state != gotHandsState::rightHand)
+            // or skip frames where right arm is not detected by calibrated sensors
+            // or if right hand is not detected TODO: eventually check for left hand and check chirality
+            if (data_status[sensor.first].calibrated || all_of(frame_data.begin(), frame_data.end(), [&](const auto &sensor)
+                                                               { return (!data_status[sensor.first].calibrated || sensor.second.second.state != gotHandsState::rightHand); }) ||
+                frame_data[sensor.first].second.state != gotHandsState::rightHand)
             {
                 continue;
             }
@@ -158,7 +158,10 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
             {
                 data_status[sensor.first].samples.emplace_back(frame_data[sensor.first]);
                 data_status[sensor.first].fused.emplace_back(getFusedHand(frame_data, data_status));
-                moveCursor(0, currentPos.Y - (registered_devices.size() - std::distance(registered_devices.begin(), registered_devices.find(sensor.first))));
+                moveCursor(0, currentPos.Y - registered_devices.size() +
+                                  ((std::distance(registered_devices.begin(), registered_devices.find(reference_id)) > std::distance(registered_devices.begin(), registered_devices.find(sensor.first)))
+                                       ? std::distance(registered_devices.begin(), registered_devices.find(sensor.first)) + 1
+                                       : std::distance(registered_devices.begin(), registered_devices.find(sensor.first))));
                 printf("Added %*d / %d calibration sample(s) for sensor %d",
                        num_digits, data_status[sensor.first].samples.size(), sample_count, sensor.first);
                 // this_thread::sleep_for(std::chrono::seconds(2));
@@ -183,6 +186,7 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
 int main(int argc, char *argv[])
 {
     int number_of_calibration_samples = 20;
+    int reference_sensor_id = 1;
     int record_frames = 500;
     string input_file = "../data/12_12_2024_binData_fusion_largeMotion_rightHand_outside_3.bin";
     string output_file = "../results/fused_hand.json";
@@ -249,6 +253,18 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
+            else if (arg == "-r")
+            {
+                if (i + 1 < argc)
+                {
+                    reference_sensor_id = std::stoi(argv[++i]);
+                }
+                else
+                {
+                    std::cerr << "Error: -r requires a value.\n";
+                    return 1;
+                }
+            }
             else
             {
                 std::cerr << "Unknown option: " << arg << std::endl;
@@ -263,7 +279,7 @@ int main(int argc, char *argv[])
     load_devices_data(registered_devices, data, input_file);
     // start data transmission simulation
     thread emitThread(emitter, cref(data));
-    thread recvThread(receiver, registered_devices, 1, number_of_calibration_samples, output_file, record_frames);
+    thread recvThread(receiver, registered_devices, reference_sensor_id, number_of_calibration_samples, output_file, record_frames);
     // Wait for both threads to complete
     emitThread.join();
     recvThread.join();

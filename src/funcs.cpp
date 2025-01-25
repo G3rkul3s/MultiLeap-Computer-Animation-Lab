@@ -89,7 +89,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
     {
         if (data_status.at(sensor.first).calibrated)
         {
-            // store confidence values only for the sensors where the right hand is detected
+            // check for the right hand in view (NOTE: relevant after the calibration to record the data)
             if (sensor.second.second.state == gotHandsState::rightHand)
             {
                 confidence[sensor.first] = computeConfidence(sensor.second.second, data_status.at(sensor.first));
@@ -140,7 +140,10 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
                 point_a += point_e * confidence.at(sensor.first);
             }
         }
-        point_a /= confidence_sum;
+        if (confidence_sum != 0)
+        {
+            point_a /= confidence_sum;
+        }
         fused_hand.second.second.push_back(avrg_point);
         // calculate hand deviation
         for (const auto &sensor : frame_data)
@@ -172,7 +175,7 @@ void calculateOptimalTranslationAndRotation(CalibrationStatus &data_status)
         {
             for (size_t j = 0; j < 3; ++j)
             {
-                matP(i + k * 20, j) = data_status.fused.at(k).second.first.at(finger_points[i]).at(j);
+                matP(i + k * 20, j) = data_status.fused.at(k).second.second.at(finger_points[i]).at(j);
                 matQ(i + k * 20, j) = data_status.samples[k].first.second[finger_points[i]][j];
             }
         }

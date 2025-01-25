@@ -16,12 +16,33 @@ sensor_colors = {
 # Create a 3D plot
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
+ax.set_position([0.2, 0.1, 0.8, 0.8])
+# Set elevation and azimuth (viewpoint)
+elev = 28  # Elevation angle in degrees
+azim = -130  # Azimuth angle in degrees
+ax.view_init(elev=elev, azim=azim)
 
-# Create the checkboxes
-ax_checkbox = plt.axes([0.01, 0.7, 0.3, 0.2])  # Checkbox position
-checkbox_labels = ['Average', 'Highest confidence']
+# Create fixed pixel bounds for the CheckButtons
+fig_width, fig_height = fig.get_size_inches() * fig.dpi  # Get figure dimensions in pixels
+fixed_x = 5  # X position in pixels
+fixed_y = 150  # Y position in pixels
+width = 120     # Width in pixels
+height = 50     # Height in pixels
+# Convert pixel coordinates to figure-relative coordinates
+inv = fig.transFigure.inverted()
+bbox = inv.transform([[fixed_x, fixed_y], [fixed_x + width, fixed_y + height]])
+x0, y0 = bbox[0]
+x1, y1 = bbox[1]
+
+# Create the CheckButtons with fixed position
+checkbox_axes = fig.add_axes([x0, y0, x1, y1])
+checkbox_axes.set_box_aspect(1)  # Ensure aspect ratio stays fixed!
+checkbox_labels = ['Average', 'Highest\nconfidence']
 checkbox_status = [True, False]  # Initial status: both checked
-checkboxes = CheckButtons(ax_checkbox, checkbox_labels, checkbox_status)
+checkboxes = CheckButtons(checkbox_axes, checkbox_labels, checkbox_status,
+                          label_props={'fontsize': [11, 11]},
+                          frame_props={'linewidths': 1.1, 'sizes':[100, 100]})
+checkboxes.ax.patch.set_visible(False)
 
 # Function to visualize 3D points dynamically
 def plot_frame(frame_idx):
@@ -42,10 +63,12 @@ def plot_frame(frame_idx):
     if checkboxes.get_status()[0]:
         right_hand_avrg = frame["right_hand_fused_avrg"]
         xa, ya, za = zip(*right_hand_avrg)
+        xa, za, ya = xa, [-z for z in za], ya
         ax.scatter(xa, ya, za, c=color, marker='o')
     if checkboxes.get_status()[1]:
         right_hand_hc = frame["right_hand_fused_hc"]
         xhc, yhc, zhc = zip(*right_hand_hc)
+        xhc, zhc, yhc = xhc, [-z for z in zhc], yhc
         ax.scatter(xhc, yhc, zhc, c=color, marker='o')
 
     # Loop through each point and normal
@@ -53,12 +76,12 @@ def plot_frame(frame_idx):
         # Plot the point
         point = sensor["position"]
         normal = sensor["normal"]
-        ax.scatter(point[0], point[1], point[2], color=sensor_colors.get(sensor["sensor_id"]))
+        ax.scatter(point[0], -1*point[2], point[1], color=sensor_colors.get(sensor["sensor_id"]))
         
         # Plot the normal vector
         ax.quiver(
-            point[0], point[1], point[2],  # Starting point
-            normal[0], normal[1], normal[2],  # Direction
+            point[0], -1*point[2], point[1],  # Starting point
+            normal[0], -1*normal[2], normal[1],  # Direction
             length=50, color=sensor_colors.get(sensor["sensor_id"]), normalize=True
         )
     
@@ -66,12 +89,12 @@ def plot_frame(frame_idx):
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
-    ax.set_title(f"Confidence {int(confidence * 100)}% | Deviation {round(deviation, 2)} mm\nTimestamp: {timestamp}")
+    ax.set_title(f"Confidence {int(confidence * 100)}% | Avrg. Deviation {deviation:2.2f} mm\nTimestamp: {timestamp}")
 
     # Optionally set limits (adjust based on your data range)
-    ax.set_xlim([-100, 400])
-    ax.set_ylim([0, 700])
-    ax.set_zlim([-500, 300])
+    ax.set_xlim([-150, 400])
+    ax.set_zlim([0, 700])
+    ax.set_ylim([-200, 400])
     
     plt.draw()
 
