@@ -19,9 +19,9 @@ cmake .. -G"MinGW Makefiles"
 make
 ```
 ## Usage
-Execute from "build" folder:
+### Execute from "build" folder:
 ```
-.\Lab.exe [-s <number_of_calibration samples>] [-i <input_file>] [-o <output_file>] [-t <number_of_frames_to_record>]
+.\Lab.exe [-s <number_of_calibration samples>] [-i <input_file>] [-o <output_file>] [-t <number_of_frames_to_record>] [-r <reference_sensor>]
 ```
 
 `-s` - a positive integer indicating a number of hand samples to be taken for calibration
@@ -30,9 +30,11 @@ Execute from "build" folder:
 
 `-o` - a path to an output json file
 
-`-t` - a number of frames to be recorded after calibration
+`-t` - number of frames to be recorded after calibration
 
-To visualize the fused hand run the python script in the "src" folder:
+`-r` - id of the reference sensor. "device_id" field
+
+### To visualize the fused hand run the python script in the "src" folder:
 ```
 py .\src\fused_hand_visualizer.py -i .\results\fused_hand.json
 ```
