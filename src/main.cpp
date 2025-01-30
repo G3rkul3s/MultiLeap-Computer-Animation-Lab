@@ -9,7 +9,7 @@ atomic<bool> done(false);          // Atomic flag to signal end of work
 atomic<bool> stopEmitting(false);  // Flag to signal emitter to stop
 
 // simulating the dataflow from sensors
-void emitter(const devices_data_t &data)
+void emitter(const map<uint32_t, pair<uint32_t, string>> &registered_devices, const devices_data_t &data)
 {
     // align sensor data in time
     map<uint32_t, int> start_ind;
@@ -23,8 +23,13 @@ void emitter(const devices_data_t &data)
                                {
                                    return a.second < b.second;
                                });
+    auto min_frames = min_element(registered_devices.begin(), registered_devices.end(),
+                                  [](const auto &a, const auto &b)
+                                  {
+                                      return a.second.first < b.second.first;
+                                  });
     printf("Data stream simulation START\n");
-    for (int i = 0; max_ind->second + i < data.begin()->second.second.size(); i++)
+    for (int i = 0; max_ind->second + i < min_frames->second.first; i++)
     {
         if (stopEmitting)
         {
@@ -44,7 +49,7 @@ void emitter(const devices_data_t &data)
         cvReceiver.notify_one(); // Notify the receiver thread
 
         // align sensor data in time every 20 frames
-        if (i != 0 && i % 20 == 0)
+        if (i != 0 && i % 20 == 0 && max_ind->second + i + 1 < min_frames->second.first)
         {
             start_ind = getTimeAlignedIndexes(data, start_ind, i);
             max_ind = max_element(start_ind.begin(), start_ind.end(),
@@ -64,7 +69,7 @@ void emitter(const devices_data_t &data)
     printf("Data stream simulation END\n");
 }
 
-void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int reference_id, int sample_count, string output_file, int record_frames)
+void receiver(const map<uint32_t, pair<uint32_t, string>> &registered_devices, int reference_id, int sample_count, string output_file, int record_frames)
 {
     hideCursor();
     printf("Calibration START\n");
@@ -139,17 +144,21 @@ void receiver(map<uint32_t, pair<uint32_t, string>> registered_devices, int refe
         for (const auto &sensor : frame_data)
         {
             // skip already calibrated sensors
-            // or skip frames where right arm is not detected by calibrated sensors
-            // or if right hand is not detected TODO: eventually check for left hand and check chirality
-            if (data_status[sensor.first].calibrated || all_of(frame_data.begin(), frame_data.end(), [&](const auto &sensor)
-                                                               { return (!data_status[sensor.first].calibrated || sensor.second.second.state != gotHandsState::rightHand); }) ||
-                frame_data[sensor.first].second.state != gotHandsState::rightHand)
+            // or skip frames where right arm is not detected by any calibrated sensors
+            // or if both/no hands are detected for the sensor being calibrated
+            if (data_status[sensor.first].calibrated ||
+                all_of(frame_data.begin(), frame_data.end(), [&](const auto &sensor)
+                       { return (!data_status[sensor.first].calibrated || sensor.second.second.state != gotHandsState::rightHand &&
+                                                                              sensor.second.second.state != gotHandsState::leftHand); }) ||
+                frame_data[sensor.first].second.state != gotHandsState::rightHand &&
+                    frame_data[sensor.first].second.state != gotHandsState::leftHand)
             {
                 continue;
             }
             // ensure samples diversity
             if (any_of(data_status[sensor.first].samples.begin(), data_status[sensor.first].samples.end(), [&](const auto &sample)
-                       { return vecm::distanceBetweenVectors(sample.second.center_right_hand, frame_data[sensor.first].second.center_right_hand) < data_status[sensor.first].minimal_distance; }))
+                       { return vecm::distanceBetweenVectors(sensor.second.second.state == gotHandsState::rightHand ? sample.second.center_right_hand : sample.second.center_left_hand,
+                                                             frame_data[sensor.first].second.center_right_hand) < data_status[sensor.first].minimal_distance; }))
             {
                 data_status[sensor.first].discarded_frames++;
                 data_status[sensor.first].minimal_distance = data_status[sensor.first].minimal_distance * (1.0 - ((1.0 / sample_count) * data_status[sensor.first].discarded_frames / 1000.0));
@@ -278,7 +287,7 @@ int main(int argc, char *argv[])
     devices_data_t data;
     load_devices_data(registered_devices, data, input_file);
     // start data transmission simulation
-    thread emitThread(emitter, cref(data));
+    thread emitThread(emitter, registered_devices, cref(data));
     thread recvThread(receiver, registered_devices, reference_sensor_id, number_of_calibration_samples, output_file, record_frames);
     // Wait for both threads to complete
     emitThread.join();

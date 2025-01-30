@@ -49,7 +49,7 @@ def plot_frame(frame_idx):
     # Iterate through each frame of data
     frame = data["frame_data"][frame_idx]
     annotation = frame["annotation"]
-    confidence = annotation.get("confidence_right_hand")
+    confidence = annotation.get("confidence")
     deviation = annotation.get("deviation")
     sensor_id = annotation.get("sensor_id")
     timestamp = annotation.get("timestamp")
@@ -61,14 +61,14 @@ def plot_frame(frame_idx):
     xa = ya = za = xhc = yhc = zhc = 0
     # Extract X, Y, Z coordinates and plot 3D points
     if checkboxes.get_status()[0]:
-        right_hand_avrg = frame["right_hand_fused_avrg"]
+        right_hand_avrg = frame["fused_hand_avrg"]
         xa, ya, za = zip(*right_hand_avrg)
-        xa, za, ya = xa, [-z for z in za], ya
+        xa, ya, za = xa, [-z for z in za], ya
         ax.scatter(xa, ya, za, c=color, marker='o')
     if checkboxes.get_status()[1]:
-        right_hand_hc = frame["right_hand_fused_hc"]
+        right_hand_hc = frame["fused_hand_hc"]
         xhc, yhc, zhc = zip(*right_hand_hc)
-        xhc, zhc, yhc = xhc, [-z for z in zhc], yhc
+        xhc, yhc, zhc = xhc, [-z for z in zhc], yhc
         ax.scatter(xhc, yhc, zhc, c=color, marker='o')
 
     # Loop through each point and normal
@@ -89,12 +89,12 @@ def plot_frame(frame_idx):
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
-    ax.set_title(f"Confidence {int(confidence * 100)}% | Avrg. Deviation {deviation:2.2f} mm\nTimestamp: {timestamp}")
+    ax.set_title(f"Avrg. Confidence {int(confidence * 100)}% | Avrg. Deviation {deviation:2.2f} mm\nTimestamp: {timestamp}")
 
     # Optionally set limits (adjust based on your data range)
-    ax.set_xlim([-150, 400])
+    ax.set_xlim([-250, 400])
     ax.set_zlim([0, 700])
-    ax.set_ylim([-200, 400])
+    ax.set_ylim([-200, 350])
     
     plt.draw()
 

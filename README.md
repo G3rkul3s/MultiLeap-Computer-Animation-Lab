@@ -5,7 +5,7 @@ paper by Tomáš Nováček and Marcel Jirina are implemented.
 
 📝*Note*: Those algorithm implementations, though in theory can be used with real-time sensor readings, have been designed with simulated readings in mind.
 
-⚠*Warning*: For now, calibration and hand fusion only works with the right hand.
+⚠*Warning*: For now, calibration and hand fusion only works with the right or left hand, but not both.
 
 ## To create an executable for this project:
 1. Create a build directory in the root folder
@@ -38,6 +38,9 @@ make
 ```
 py .\src\fused_hand_visualizer.py -i .\results\fused_hand.json
 ```
+
+`-i` - a path to an input file generated in the previous step
+
 ##
 *Created by Nikita Morev*
 

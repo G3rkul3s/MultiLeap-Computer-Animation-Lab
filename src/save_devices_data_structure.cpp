@@ -127,9 +127,9 @@ void save_devices_data(const devices_data_t &data,
 json annotation_to_json(const AnnotationFusedHand &annotation)
 {
     return {
-        {"sensor_id", annotation.sensor_id},
+        {"sensor_id", annotation.sensor_id.value()},
         {"timestamp", annotation.timestamp},
-        {"confidence_right_hand", annotation.confidence_right_hand},
+        {"confidence", annotation.confidence},
         {"deviation", annotation.hand_deviation}};
 }
 
@@ -149,8 +149,8 @@ json fused_hand_data_to_json(const fused_hand_data &data)
 {
     return {
         {"annotation", annotation_to_json(data.first)},
-        {"right_hand_fused_hc", hand_data_sim_to_json(data.second.first)},
-        {"right_hand_fused_avrg", hand_data_sim_to_json(data.second.second)}};
+        {"fused_hand_hc", hand_data_sim_to_json(data.second.first)},
+        {"fused_hand_avrg", hand_data_sim_to_json(data.second.second)}};
 }
 
 // Function to convert sensor data to JSON

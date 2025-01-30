@@ -62,9 +62,9 @@ typedef pair<uint32_t, hands_annot_data> devices_data_sim;
 
 struct AnnotationFusedHand
 {
-    uint32_t sensor_id;
+    std::optional<uint32_t> sensor_id;
     uint32_t timestamp;
-    float confidence_right_hand;
+    float confidence;
     float hand_deviation;
 };
 
