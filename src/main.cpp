@@ -69,12 +69,12 @@ void emitter(const map<uint32_t, pair<uint32_t, string>> &registered_devices, co
     printf("Data stream simulation END\n");
 }
 
-void receiver(const map<uint32_t, pair<uint32_t, string>> &registered_devices, int reference_id, int sample_count, string output_file, int record_frames)
+void receiver(const map<uint32_t, pair<uint32_t, string>> &registered_devices, uint32_t reference_id, int sample_count, string output_file, int recording_start_frame, int recording_finish_frame)
 {
     hideCursor();
     printf("Calibration START\n");
     // initiallize all necessary data structures
-    int f_count = 0; // frame counter for later hand visualization
+    int f_count = 0; // frame counter
     bool calibration_end = false;
     vector<fused_hand_data> fused_hand_vec;
     int num_sensors = registered_devices.size();
@@ -119,7 +119,7 @@ void receiver(const map<uint32_t, pair<uint32_t, string>> &registered_devices, i
             // break;
             calibration_end = true;
             moveCursor(0, currentPos.Y - 1);
-            printf("\nCalibration END\n");
+            printf("\nCalibration END on frame %d\n", f_count);
             // for (const auto &device : data_status)
             // {
             //     std::cout << "Sensor " << device.first << std::endl
@@ -133,59 +133,65 @@ void receiver(const map<uint32_t, pair<uint32_t, string>> &registered_devices, i
         // record fused hand after the calibration is done
         if (calibration_end)
         {
-            if (f_count > record_frames - 1)
+            if (f_count >= recording_start_frame)
             {
-                stopEmitting = true;
+                if (f_count > recording_finish_frame)
+                {
+                    stopEmitting = true;
+                    continue;
+                }
+                fused_hand_vec.emplace_back(getFusedHand(frame_data, data_status));
             }
-            fused_hand_vec.emplace_back(getFusedHand(frame_data, data_status));
-            f_count++;
         }
-        // Sample the data
-        for (const auto &sensor : frame_data)
+        else
         {
-            // skip already calibrated sensors
-            // or skip frames where right arm is not detected by any calibrated sensors
-            // or if both/no hands are detected for the sensor being calibrated
-            if (data_status[sensor.first].calibrated ||
-                all_of(frame_data.begin(), frame_data.end(), [&](const auto &sensor)
-                       { return (!data_status[sensor.first].calibrated || sensor.second.second.state != gotHandsState::rightHand &&
-                                                                              sensor.second.second.state != gotHandsState::leftHand); }) ||
-                frame_data[sensor.first].second.state != gotHandsState::rightHand &&
-                    frame_data[sensor.first].second.state != gotHandsState::leftHand)
+            // Sample the data
+            for (const auto &sensor : frame_data)
             {
-                continue;
-            }
-            // ensure samples diversity
-            if (any_of(data_status[sensor.first].samples.begin(), data_status[sensor.first].samples.end(), [&](const auto &sample)
-                       { return vecm::distanceBetweenVectors(sensor.second.second.state == gotHandsState::rightHand ? sample.second.center_right_hand : sample.second.center_left_hand,
-                                                             frame_data[sensor.first].second.center_right_hand) < data_status[sensor.first].minimal_distance; }))
-            {
-                data_status[sensor.first].discarded_frames++;
-                data_status[sensor.first].minimal_distance = data_status[sensor.first].minimal_distance * (1.0 - ((1.0 / sample_count) * data_status[sensor.first].discarded_frames / 1000.0));
-            }
-            else
-            {
-                data_status[sensor.first].samples.emplace_back(frame_data[sensor.first]);
-                data_status[sensor.first].fused.emplace_back(getFusedHand(frame_data, data_status));
-                moveCursor(0, currentPos.Y - registered_devices.size() +
-                                  ((std::distance(registered_devices.begin(), registered_devices.find(reference_id)) > std::distance(registered_devices.begin(), registered_devices.find(sensor.first)))
-                                       ? std::distance(registered_devices.begin(), registered_devices.find(sensor.first)) + 1
-                                       : std::distance(registered_devices.begin(), registered_devices.find(sensor.first))));
-                printf("Added %*d / %d calibration sample(s) for sensor %d",
-                       num_digits, data_status[sensor.first].samples.size(), sample_count, sensor.first);
-                // this_thread::sleep_for(std::chrono::seconds(2));
-            }
-            // when enough samples are collected
-            if (data_status[sensor.first].samples.size() >= sample_count)
-            {
-                calculateOptimalTranslationAndRotation(data_status[sensor.first]);
-                // find new position and normal
-                data_status[sensor.first].sensor_position = data_status[sensor.first].sensor_position + data_status[sensor.first].translation_vector;
-                data_status[sensor.first].sensor_normal = data_status[sensor.first].rotation_matrix * data_status[sensor.first].sensor_normal;
-                data_status[sensor.first].calibrated = true;
+                // skip already calibrated sensors
+                // or skip frames where right arm is not detected by any calibrated sensors
+                // or if both/no hands are detected for the sensor being calibrated
+                if (data_status[sensor.first].calibrated ||
+                    all_of(frame_data.begin(), frame_data.end(), [&](const auto &sensor)
+                           { return (!data_status[sensor.first].calibrated || sensor.second.second.state != gotHandsState::rightHand &&
+                                                                                  sensor.second.second.state != gotHandsState::leftHand); }) ||
+                    frame_data[sensor.first].second.state != gotHandsState::rightHand &&
+                        frame_data[sensor.first].second.state != gotHandsState::leftHand)
+                {
+                    continue;
+                }
+                // ensure samples diversity
+                if (any_of(data_status[sensor.first].samples.begin(), data_status[sensor.first].samples.end(), [&](const auto &sample)
+                           { return vecm::distanceBetweenVectors(sensor.second.second.state == gotHandsState::rightHand ? sample.second.center_right_hand : sample.second.center_left_hand,
+                                                                 frame_data[sensor.first].second.center_right_hand) < data_status[sensor.first].minimal_distance; }))
+                {
+                    data_status[sensor.first].discarded_frames++;
+                    data_status[sensor.first].minimal_distance = data_status[sensor.first].minimal_distance * (1.0 - ((1.0 / sample_count) * data_status[sensor.first].discarded_frames / 1000.0));
+                }
+                else
+                {
+                    data_status[sensor.first].samples.emplace_back(frame_data[sensor.first]);
+                    data_status[sensor.first].fused.emplace_back(getFusedHand(frame_data, data_status));
+                    moveCursor(0, currentPos.Y - registered_devices.size() +
+                                      ((std::distance(registered_devices.begin(), registered_devices.find(reference_id)) > std::distance(registered_devices.begin(), registered_devices.find(sensor.first)))
+                                           ? std::distance(registered_devices.begin(), registered_devices.find(sensor.first)) + 1
+                                           : std::distance(registered_devices.begin(), registered_devices.find(sensor.first))));
+                    printf("Added %*d / %d calibration sample(s) for sensor %d",
+                           num_digits, data_status[sensor.first].samples.size(), sample_count, sensor.first);
+                    // this_thread::sleep_for(std::chrono::seconds(2));
+                }
+                // when enough samples are collected
+                if (data_status[sensor.first].samples.size() >= sample_count)
+                {
+                    calculateOptimalTranslationAndRotation(data_status[sensor.first]);
+                    // find new sensor position and normal
+                    data_status[sensor.first].sensor_position = data_status[sensor.first].sensor_position + data_status[sensor.first].translation_vector;
+                    data_status[sensor.first].sensor_normal = data_status[sensor.first].rotation_matrix * data_status[sensor.first].sensor_normal;
+                    data_status[sensor.first].calibrated = true;
+                }
             }
         }
-
+        f_count++;
         // clear current frame
         frame_data.clear();
     }
@@ -195,8 +201,10 @@ void receiver(const map<uint32_t, pair<uint32_t, string>> &registered_devices, i
 int main(int argc, char *argv[])
 {
     int number_of_calibration_samples = 20;
-    int reference_sensor_id = 1;
-    int record_frames = 500;
+    std::optional<uint32_t> reference_sensor_id;
+    // int record_frames = 500;
+    int recording_start_frame = 0;
+    int recording_finish_frame = 0;
     string input_file = "../data/12_12_2024_binData_fusion_largeMotion_rightHand_outside_3.bin";
     string output_file = "../results/fused_hand.json";
     if (argc > 1)
@@ -204,7 +212,7 @@ int main(int argc, char *argv[])
         for (int i = 1; i < argc; ++i)
         {
             std::string arg = argv[i];
-            if (arg == "-s")
+            if (arg == "-n")
             {
                 if (i + 1 < argc)
                 {
@@ -245,23 +253,23 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
-            else if (arg == "-t")
-            {
-                if (i + 1 < argc)
-                {
-                    record_frames = std::stoi(argv[++i]);
-                    if (record_frames < 0)
-                    {
-                        std::cerr << "Error: number of frames to record must be positive.\n";
-                        return 1;
-                    }
-                }
-                else
-                {
-                    std::cerr << "Error: -t requires a value.\n";
-                    return 1;
-                }
-            }
+            // else if (arg == "-t")
+            // {
+            //     if (i + 1 < argc)
+            //     {
+            //         record_frames = std::stoi(argv[++i]);
+            //         if (record_frames < 0)
+            //         {
+            //             std::cerr << "Error: number of frames to record must be positive.\n";
+            //             return 1;
+            //         }
+            //     }
+            //     else
+            //     {
+            //         std::cerr << "Error: -t requires a value.\n";
+            //         return 1;
+            //     }
+            // }
             else if (arg == "-r")
             {
                 if (i + 1 < argc)
@@ -274,10 +282,49 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
+            else if (arg == "-s")
+            {
+                if (i + 1 < argc)
+                {
+                    recording_start_frame = std::stoi(argv[++i]);
+                    if (recording_start_frame < 0)
+                    {
+                        std::cerr << "Error: first frame of the recording must be positive.\n";
+                        return 1;
+                    }
+                }
+                else
+                {
+                    std::cerr << "Error: -f requires a value.\n";
+                    return 1;
+                }
+            }
+            else if (arg == "-f")
+            {
+                if (i + 1 < argc)
+                {
+                    recording_finish_frame = std::stoi(argv[++i]);
+                    if (recording_finish_frame < 0)
+                    {
+                        std::cerr << "Error: first frame of the recording must be positive.\n";
+                        return 1;
+                    }
+                    else if (recording_finish_frame < recording_start_frame)
+                    {
+                        std::cerr << "Error: recording finish frame must be after the starting frame.\n";
+                        return 1;
+                    }
+                }
+                else
+                {
+                    std::cerr << "Error: -f requires a value.\n";
+                    return 1;
+                }
+            }
             else
             {
                 std::cerr << "Unknown option: " << arg << std::endl;
-                std::cerr << "Usage: .\\Lab [-s <number of calibration samples>] [-i <input file>] [-o <output file>]\n";
+                std::cerr << "Usage: .\\Lab [-n <number_of_calibration_samples>] [-i <input_file>] [-o <output_file>] [-r <reference_sensor>] [-s <recording_start_frame>] [-f <recording_finish_frame>]\n";
                 return 1;
             }
         }
@@ -286,9 +333,20 @@ int main(int argc, char *argv[])
     map<uint32_t, pair<uint32_t, string>> registered_devices;
     devices_data_t data;
     load_devices_data(registered_devices, data, input_file);
+    if (!reference_sensor_id.has_value())
+    {
+        reference_sensor_id = registered_devices.begin()->first;
+    }
+    // check for the correct input
+    if (registered_devices.find(reference_sensor_id.value()) == registered_devices.end())
+    {
+        std::cerr << "Error: sensor id does not exist.\n";
+        std::cerr << "-r accepts id from 'device_id' field.\n";
+        return 1;
+    }
     // start data transmission simulation
     thread emitThread(emitter, registered_devices, cref(data));
-    thread recvThread(receiver, registered_devices, reference_sensor_id, number_of_calibration_samples, output_file, record_frames);
+    thread recvThread(receiver, registered_devices, reference_sensor_id.value(), number_of_calibration_samples, output_file, recording_start_frame, recording_finish_frame);
     // Wait for both threads to complete
     emitThread.join();
     recvThread.join();
