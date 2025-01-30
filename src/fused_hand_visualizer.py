@@ -94,7 +94,7 @@ def plot_frame(frame_idx):
     # Optionally set limits (adjust based on your data range)
     ax.set_xlim([-250, 400])
     ax.set_zlim([0, 700])
-    ax.set_ylim([-200, 350])
+    ax.set_ylim([-200, 400])
     
     plt.draw()
 

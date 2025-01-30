@@ -21,18 +21,22 @@ make
 ## Usage
 ### Execute from the "build" folder:
 ```
-.\Lab.exe [-s <number_of_calibration samples>] [-i <input_file>] [-o <output_file>] [-t <number_of_frames_to_record>] [-r <reference_sensor>]
+.\Lab.exe [-s <number_of_calibration samples>] [-i <input_file>] [-o <output_file>] [-t <number_of_frames_to_record>] [-r <reference_sensor>] [-f <recording_start_frame>]
 ```
 
-`-s` - a positive integer indicating a number of hand samples to be taken for calibration
+`-n` - a positive integer indicating a number of hand samples to be taken for calibration
 
 `-i` - a path to a binary input file from the "data" folder. If you want to create/generate your own input file, refer to the src/save_devices_data_structure.cpp and json files in the "data"
 
 `-o` - a path to an output json file
 
-`-t` - number of frames to be recorded after calibration
+<!-- `-t` - number of frames to be recorded after calibration -->
 
 `-r` - id of the reference sensor. "device_id" field
+
+`-s` - a frame from which a recording can start. If the calibration process takes too long, a recording may start with a delay
+
+`-f` - a frame until which the fused hand is recorded
 
 ### To visualize the fused hand run the python script in the "src" folder:
 ```

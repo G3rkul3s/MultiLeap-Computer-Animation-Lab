@@ -195,7 +195,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
         }
         return fused_hand;
     }
-    float confidence_sum = std::accumulate(confidence.begin(), confidence.end(), 0.0,
+    float confidence_sum = std::accumulate(confidence.begin(), confidence.end(), 0.0f,
                                            [](float acc, const std::pair<uint32_t, float> &p)
                                            {
                                                return acc + p.second;
@@ -242,7 +242,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
                 point_a += point_e * confidence.at(sensor.first);
             }
         }
-        if (confidence_sum != 0)
+        if (confidence_sum != 0.0f)
         {
             point_a /= confidence_sum;
         }
@@ -267,7 +267,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
         }
     }
     fused_hand.first.hand_deviation = hand_deviation / joint_num;
-    if (confidence_sum != 0.0)
+    if (confidence_sum != 0.0f)
     {
         fused_hand.first.hand_deviation /= confidence_sum;
     }
