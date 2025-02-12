@@ -127,7 +127,7 @@ void save_devices_data(const devices_data_t &data,
 json annotation_to_json(const AnnotationFusedHand &annotation)
 {
     return {
-        {"sensor_id", annotation.sensor_id.value()},
+        {"sensor_id", annotation.sensor_id.has_value() ? annotation.sensor_id.value() : 0},
         {"timestamp", annotation.timestamp},
         {"confidence", annotation.confidence},
         {"deviation", annotation.hand_deviation}};
