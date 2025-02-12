@@ -85,7 +85,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
 {
     fused_hand_data fused_hand;
     map<uint32_t, float> confidence;
-    float hand_deviation = 0;
+    float hand_deviation = 0.0;
     float chirality_tolerance = 30.0;
     int hand_in_view_count = 0; // how many calibrated sensors sees the hand
     uint32_t joint_num = frame_data.begin()->second.first.second.size();
@@ -207,7 +207,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
                                         })
                            ->first;
     fused_hand.first.sensor_id = max_ind;
-    fused_hand.first.confidence = confidence_sum / confidence.size();
+    fused_hand.first.confidence = confidence_sum / hand_in_view_count;
     fused_hand.first.timestamp = frame_data.at(max_ind).second.timestamp;
     // apply translation and rotation to get hand postion from the perspective of the reference sensor
     for (int i = 0; i < joint_num; ++i)
@@ -219,6 +219,8 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
             if (data_status.at(sensor.first).calibrated)
             {
                 vector<float> point = {0, 0, 0};
+                // map to Eigen vector to perform vector operations
+                Eigen::Map<Eigen::Vector3f> point_e(point.data());
                 // manually take first 3 elements, because frame data has unnecessary quaternion information
                 if (sensor.second.second.state == gotHandsState::rightHand)
                 {
@@ -228,8 +230,10 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
                 {
                     point.assign(sensor.second.first.first.at(i).begin(), sensor.second.first.first.at(i).begin() + 3);
                 }
-                // map to Eigen vector to perform vector operations
-                Eigen::Map<Eigen::Vector3f> point_e(point.data());
+                else
+                {
+                    continue;
+                }
                 // perform translation and rotation
                 point_e = data_status.at(sensor.first).translation_vector + data_status.at(sensor.first).rotation_matrix * point_e;
                 // highest confidence mode
@@ -252,6 +256,7 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
             if (data_status.at(sensor.first).calibrated)
             {
                 vector<float> point = {0, 0, 0};
+                Eigen::Map<Eigen::Vector3f> point_e(point.data());
                 if (sensor.second.second.state == gotHandsState::rightHand)
                 {
                     point.assign(sensor.second.first.second.at(i).begin(), sensor.second.first.second.at(i).begin() + 3);
@@ -260,15 +265,19 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
                 {
                     point.assign(sensor.second.first.first.at(i).begin(), sensor.second.first.first.at(i).begin() + 3);
                 }
-                Eigen::Map<Eigen::Vector3f> point_e(point.data());
-                hand_deviation += vecm::distanceBetweenVectors(point_e, point_a) * confidence.at(sensor.first);
+                else
+                {
+                    continue;
+                }
+                point_e = data_status.at(sensor.first).translation_vector + data_status.at(sensor.first).rotation_matrix * point_e;
+                hand_deviation += confidence.at(sensor.first) * vecm::distanceBetweenVectors(point_e, point_a);
             }
         }
     }
     fused_hand.first.hand_deviation = hand_deviation / joint_num;
     if (confidence_sum != 0.0f)
     {
-        fused_hand.first.hand_deviation /= confidence_sum;
+        fused_hand.first.hand_deviation /= fused_hand.first.confidence;
     }
     if (hand_in_view_count != 0)
     {
