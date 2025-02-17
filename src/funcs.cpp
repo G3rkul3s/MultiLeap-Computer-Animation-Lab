@@ -290,7 +290,8 @@ fused_hand_data getFusedHand(const map<uint32_t, hands_annot_data> &frame_data, 
 // Kabsch algorithm
 void calculateOptimalTranslationAndRotation(CalibrationStatus &data_status)
 {
-    int finger_points[20] = {2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 20, 22, 23, 24, 25}; // all idexes of right hand fingers joints
+    // all idexes of right/left hand fingers joints
+    int finger_points[20] = {2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 20, 22, 23, 24, 25};
     size_t rows = data_status.samples.size() * 20;
     // represent as P and Q
     Eigen::MatrixXf matP(rows, 3);
@@ -302,7 +303,14 @@ void calculateOptimalTranslationAndRotation(CalibrationStatus &data_status)
             for (size_t j = 0; j < 3; ++j)
             {
                 matP(i + k * 20, j) = data_status.fused.at(k).second.second.at(finger_points[i]).at(j);
-                matQ(i + k * 20, j) = data_status.samples[k].first.second[finger_points[i]][j];
+                if (data_status.samples[k].second.state == gotHandsState::rightHand)
+                {
+                    matQ(i + k * 20, j) = data_status.samples[k].first.second[finger_points[i]][j];
+                }
+                else
+                {
+                    matQ(i + k * 20, j) = data_status.samples[k].first.first[finger_points[i]][j];
+                }
             }
         }
     }
