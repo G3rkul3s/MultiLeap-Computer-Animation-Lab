@@ -1,6 +1,8 @@
 import json
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
+from matplotlib.animation import FuncAnimation, PillowWriter
+import numpy as np
 
 import sys
 import getopt
@@ -158,8 +160,17 @@ def main(argv):
     
     # Plot the initial frame
     plot_frame(slider.val)
+    
+    # code to save animations:
+    
+    # Create animation
+    # ani = FuncAnimation(fig, slider.set_val, frames=np.arange(28, 30, 1), interval=50, blit=False)
+    # checkboxes.set_active(0)
+    # checkboxes.set_active(1)
+    # ani.save("../animated.mp4", writer="ffmpeg", fps=30)  # Save as MP4
+    # ani.save("../animated.gif", writer=PillowWriter(fps=30))  # Save as GIF
+    
     plt.show()
-    # visualize_right_hand(data)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

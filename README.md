@@ -5,7 +5,7 @@ paper by Tomáš Nováček and Marcel Jirina are implemented.
 
 📝*Note*: Those algorithm implementations, though in theory can be used with real-time sensor readings, have been designed with simulated readings in mind.
 
-⚠*Warning*: For now, calibration and hand fusion only works with the right or left hand, but not both.
+⚠*Warning*: For now, calibration and hand fusion only works with the right or left hand, but not both. Fusing a hand with incorrect chirality works correctly only if the normal vector of the misclassified hand faces the same direction as the correctly classified ones. Otherwise, it may lead to unexpected behavior.
 
 ## To create an executable for this project:
 1. Create a build directory in the root folder

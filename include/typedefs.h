@@ -66,6 +66,11 @@ struct AnnotationFusedHand
     uint32_t timestamp;
     float confidence;
     float hand_deviation;
+    // TODO: save palm center and normal
+    // Eigen::Vector3f hand_center_avg = Eigen::Vector3f::Zero();
+    // Eigen::Vector3f hand_center_hc = Eigen::Vector3f::Zero();
+    // Eigen::Vector3f hand_normal_avg{0.0, 1.0, 0.0};
+    // Eigen::Vector3f hand_normal_hc{0.0, 1.0, 0.0};
 };
 
 // first hand_data_sim is the highest confidence fusing mode

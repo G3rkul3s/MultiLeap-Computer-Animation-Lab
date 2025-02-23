@@ -130,7 +130,12 @@ json annotation_to_json(const AnnotationFusedHand &annotation)
         {"sensor_id", annotation.sensor_id.has_value() ? annotation.sensor_id.value() : 0},
         {"timestamp", annotation.timestamp},
         {"confidence", annotation.confidence},
-        {"deviation", annotation.hand_deviation}};
+        {"deviation", annotation.hand_deviation},
+        // {"hand_center_avg", annotation.hand_center_avg},
+        // {"hand_center_hc", annotation.hand_center_hc},
+        // {"hand_normal_avg", annotation.hand_normal_avg},
+        // {"hand_normal_hc", annotation.hand_normal_hc}
+    };
 }
 
 // Function to convert hand_data_sim to JSON
